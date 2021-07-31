@@ -39,6 +39,18 @@
 #define LRZVERMIN 5
 #define FILTEROFF 1
 #define ENCRYPT  22
+#define MAGICLEN8 18
+#define ENCRYPT8 15
+/* from Lzma2Dec.c, decode dictionary */
+#define LZMA2_DIC_SIZE_FROM_PROP(p) (p == 40 ? 0xFFFFFFFF : (((unsigned int)2 | ((p) & 1)) << ((p) / 2 + 11)))
+
+/* lrzip-next magic header 8 the same for first 14 bytes
+ * byte 15 is md5 flag
+ * byte 16 is encrypt flag
+ * byte 17 is filter
+ * byte 18 is lzma2 dictionary encoded
+ */
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,6 +71,40 @@ void usage()
 	fprintf(stdout,"  -h|? show this message\n");
 }
 
+char *filterstring(unsigned char magic, int *deltaval)
+{
+
+	unsigned char filt = magic & 7;
+	switch (filt)
+	{
+		case 0: return "None";
+			break;;
+		case 1: return "x86";
+			break;;
+		case 2: return "ARM";
+			break;;
+		case 3: return "ARMT";
+			break;;
+		case 4: return "PPC";
+			break;;
+		case 5: return "SPARC";
+			break;
+		case 6: return "IA64";
+			break;
+		case 7: *deltaval = magic >> 3;
+			if (*deltaval <= 16)
+				*deltaval+=1;
+			else
+				(*deltaval-16+1)*16;
+			return "Delta";
+			break;
+		default:
+			return "WTF?";
+			break;
+	}
+}
+
+
 int main( int argc, char *argv[])
 {
 	unsigned char magic[MAGICLEN+1];
@@ -67,6 +113,8 @@ int main( int argc, char *argv[])
 	char *endptr, *filename, o_mode[3]={'\0','\0','\0'};	/* filename for readability */
 	int opt, filter_offset, i, exitcode=0, major, minor;
 	bool isencrypt=false, force=false, info=false;
+	char filter[7];
+	int deltaval=0;
 
 	while ((opt=getopt(argc, argv, "s:fi")) != -1)
 	{
@@ -135,6 +183,7 @@ int main( int argc, char *argv[])
 		goto exitprg;
 	}
 
+	// Read old magic length even if future version. We will still only write to size position
 	if (!fgets(&magic[0],MAGICLEN+1,fp))
 	{
 		fprintf(stderr,"Error reading magic. Exiting...\n");
@@ -145,10 +194,23 @@ int main( int argc, char *argv[])
 	major=(magic[LRZVERMAJ]);
 	minor=(magic[LRZVERMIN]);
 
-	/* filter offset is for lrzip version 7. version 6 has no filtering */
-	filter_offset=(minor==6?0:1);
+	unsigned char d, lc, lp, pb;
+	u_int32_t ds, *dsptr;
 
-	isencrypt=magic[ENCRYPT+filter_offset];
+	/* filter offset is for lrzip version 7. version 6 has no filtering */
+	switch (minor)
+	{
+		case 6:
+			isencrypt=magic[ENCRYPT];
+			filter_offset = 0;
+			break;;
+		case 7: isencrypt=magic[ENCRYPT+1];
+			filter_offset = 1;
+			break;;
+		case 8: isencrypt=magic[ENCRYPT8];
+			break;;
+	}
+
 	/* get stored filesize */
 	if (!isencrypt)
 		memcpy(&stored_filesize, &magic[SIZESTART], SIZELEN);
@@ -157,6 +219,7 @@ int main( int argc, char *argv[])
 
 	if (info==true)
 	{
+		// common header elements
 		fprintf(stdout,"%s is an lrzip version %d.%d file\n",filename,major,minor);
 		fprintf(stdout,"%s %s encrypted\n",filename,(isencrypt==0?"is not":"is"));
 		fprintf(stdout,"%s uncompressed file size is ",filename);
@@ -164,7 +227,7 @@ int main( int argc, char *argv[])
 			fprintf(stdout,"%llu bytes\n", stored_filesize);
 		else
 			fprintf(stdout,"not known because file is encrypted\n");
-		fprintf(stdout,"Dumping magic header 24 bytes\n");
+		fprintf(stdout,"Dumping magic header %d bytes\n", minor<8?MAGICLEN: MAGICLEN8);
 		fprintf(stdout,"Byte Offset      Description/Content\n");
 		fprintf(stdout,"===========      ===================\n");
 		fprintf(stdout,"Magic Bytes 0-3: ");
@@ -187,35 +250,66 @@ int main( int argc, char *argv[])
 		for (i=j;i<SIZESTART+SIZELEN;i++)
 			fprintf(stdout,"%02hhX ",magic[i]);
 		fprintf(stdout,"\n");
-		fprintf(stdout,"Bytes 14 and 15: unused\n");
-		if (major==0 && minor==7)
-			fprintf(stdout,"Byte  16:        LRZIP Filter %hhX\n", magic[16]);
-		if (magic[16+filter_offset])
+		if (minor < 8)
 		{
-			// decode lzma
-			unsigned char d, lc, lp, pb;
-			u_int32_t ds, *dsptr;
-			fprintf(stdout,"Bytes %2d-%2d:     LZMA Properties Bytes; ",16+filter_offset,20+filter_offset);
-			for (i=0;i<5;i++)
-				fprintf(stdout,"%02hhX ",magic[16+i+filter_offset]);
-			/* from LzmaDec.c Igor Pavlov */
-			d=magic[16+filter_offset];
-			lc=(unsigned char) (d % 9);
-			d /= 9;
-			pb=(unsigned char) (d / 5);
-			lp=(unsigned char) (d % 5);
-			dsptr=(u_int32_t *) &magic[17+filter_offset];
-			ds=le32toh(*dsptr);
-			fprintf(stdout,"lc=%d, lp=%d, pb=%d, Dictionary Size=%lu", lc,lp,pb,ds);
+			fprintf(stdout,"Bytes 14 and 15: unused\n");
+			if (minor==7)
+			{
+				strcpy(filter,filterstring(magic[16], &deltaval));
+				fprintf(stdout,"Byte  16:        LRZIP Filter %hhX - %s", magic[16], filter);
+				if (deltaval)
+					fprintf(stdout," Offset = %d", deltaval);
+				fprintf(stdout,"\n");
+			}
+
+			if (magic[16+filter_offset])
+			{
+				// decode lzma
+				fprintf(stdout,"Bytes %2d-%2d:     LZMA Properties Bytes; ",16+filter_offset,20+filter_offset);
+				for (i=0;i<5;i++)
+					fprintf(stdout,"%02hhX ",magic[16+i+filter_offset]);
+				/* from LzmaDec.c Igor Pavlov */
+				d=magic[16+filter_offset];
+				lc=(unsigned char) (d % 9);
+				d /= 9;
+				pb=(unsigned char) (d / 5);
+				lp=(unsigned char) (d % 5);
+				dsptr=(u_int32_t *) &magic[17+filter_offset];
+				ds=le32toh(*dsptr);
+				fprintf(stdout,"lc=%d, lp=%d, pb=%d, Dictionary Size=%lu", lc,lp,pb,ds);
+			}
+			else
+				fprintf(stdout,"Bytes %2d-%2d    unused. Not an LZMA compressed archive",magic[16+filter_offset], magic[20+filter_offset]);
+			fprintf(stdout,"\n");
+			fprintf(stdout,"Byte  %d:        MD5 Sum at EOF: %s\n",21+filter_offset,(magic[21+filter_offset]==1?"yes":"no"));
+			fprintf(stdout,"Byte  %d:        File is encrypted: %s\n",ENCRYPT+filter_offset,(magic[ENCRYPT+filter_offset]==1?"yes":"no"));
+			if (major==0 && minor==6)
+				fprintf(stdout,"Byte  23:        unused\n");
+			exitcode=0;
 		}
 		else
-			fprintf(stdout,"Bytes %2d-%2d    unused. Not an LZMA compressed archive",magic[16+filter_offset], magic[20+filter_offset]);
-		fprintf(stdout,"\n");
-		fprintf(stdout,"Byte  %d:        MD5 Sum at EOF: %s\n",21+filter_offset,(magic[21+filter_offset]==1?"yes":"no"));
-		fprintf(stdout,"Byte  %d:        File is encrypted: %s\n",ENCRYPT+filter_offset,(magic[ENCRYPT+filter_offset]==1?"yes":"no"));
-		if (major==0 && minor==6)
-			fprintf(stdout,"Byte  23:        unused\n");
-		exitcode=0;
+		{
+			/* lrzip-mext8 */
+			fprintf(stdout,"Byte  14:        MD5 Sum at EOF: %s\n",(magic[14]>=1?"yes":"no"));
+			fprintf(stdout,"Byte  15:        File is encrypted: %s\n",(magic[ENCRYPT8]==1?"yes":"no"));
+			strcpy(filter,filterstring(magic[16], &deltaval));
+			fprintf(stdout,"Byte  16:        LRZIP Filter %hhX - %s", magic[16], filter);
+			if (deltaval)
+				fprintf(stdout," Offset = %d", deltaval);
+			fprintf(stdout,"\n");
+			if (magic[17])
+			{
+				// decode lzma
+				ds=LZMA2_DIC_SIZE_FROM_PROP(magic[17]);
+				fprintf(stdout,"Byte  17:        LZMA Dictionary Size Byte %02X ", magic[17]);
+				/* from LzmaDec.c Igor Pavlov */
+				fprintf(stdout,"lc=%d, lp=%d, pb=%d, Dictionary Size=%lu", 3, 0, 2,ds);
+			}
+			else
+				fprintf(stdout,"Byte  17:        unused. Not an LZMA compressed archive");
+			fprintf(stdout,"\n");
+			exitcode=0;
+		}
 		goto exitprg;
 	}
 

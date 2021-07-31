@@ -7,6 +7,10 @@ Usage: ps2lrz -s [-f] [-i] filename
   -i   show file info, evaluate Magic Header Bytes, and exit.  
   -h|? (or no argument) show this help message.
 
+## NEW Now supports lrzip-next v0.8 files
+
+Updated magic header is 6 bytes smaller.
+
 ## What?
 `ps2lrz` is a C program to allow a user to poke an uncompressed
 file size into an **lrzip** version 0.6 or **lrzip-next**
@@ -61,6 +65,24 @@ Bytes 17-21:     LZMA Properties Bytes; 5D 00 00 40 00 lc=3, lp=0, pb=2, Diction
 Byte  22:        MD5 Sum at EOF: yes
 Byte  23:        File is encrypted: no
 ```
+Or if you have an `lrzip-next` version **0.8.x** file, the output will resemble this.
+```
+$ ps2lrz -i lrzip-next.git.tar.lrz
+Showing file info only
+lrzip-next.git.tar.lrz is an lrzip version 0.8 file
+lrzip-next.git.tar.lrz is not encrypted
+lrzip-next.git.tar.lrz uncompressed file size is 0 bytes
+Dumping magic header 18 bytes
+Byte Offset      Description/Content
+===========      ===================
+Magic Bytes 0-3: 4C 52 5A 49 LRZI
+Bytes 4-5:       LRZIP Major, Minor version: 00, 08
+Bytes 6-13:      LRZIP Uncompressed Size bytes: 00 00 00 00 00 00 00 00 
+Byte  14:        MD5 Sum at EOF: yes
+Byte  15:        File is encrypted: no
+Byte  16:        LRZIP Filter 0
+Byte  17:        LZMA Dictionary Size Byte 1A lc=3, lp=0, pb=2, Dictionary Size=33554432
+```
 
 **filename.lrz uncompressed file size is 0 bytes** shows you could use a file size.
 This indicates that the lrz  file was created with `tar -I` or a pipe to STDOUT.
@@ -111,12 +133,30 @@ Bytes 17-21:     LZMA Properties Bytes; 5D 00 00 40 00 lc=3, lp=0, pb=2, Diction
 Byte  22:        MD5 Sum at EOF: yes
 Byte  23:        File is encrypted: no
 ```
+Or if you have an `lrzip-next` version **0.8.x** file,
+```
+$ ./ps2lrz -i lrzip-next.git.tar.lrz
+Showing file info only
+lrzip-next.git.tar.lrz is an lrzip version 0.8 file
+lrzip-next.git.tar.lrz is not encrypted
+lrzip-next.git.tar.lrz uncompressed file size is 13342720 bytes
+Dumping magic header 18 bytes
+Byte Offset      Description/Content
+===========      ===================
+Magic Bytes 0-3: 4C 52 5A 49 LRZI
+Bytes 4-5:       LRZIP Major, Minor version: 00, 08
+Bytes 6-13:      LRZIP Uncompressed Size bytes: 00 98 CB 00 00 00 00 00 
+Byte  14:        MD5 Sum at EOF: yes
+Byte  15:        File is encrypted: no
+Byte  16:        LRZIP Filter 0
+Byte  17:        LZMA Dictionary Size Byte 1A lc=3, lp=0, pb=2, Dictionary Size=33554432
+```
 
 ## Build
 `gcc -o ps2lrz ps2lrz.c`
 
 Feeback welcome!
 
-March 2021  
+July 2021  
 Peter Hyman  
 pete@peterhyman.com

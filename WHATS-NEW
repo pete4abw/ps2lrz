@@ -1,0 +1,4 @@
+July 2021
+
+Added lrzip-next version 0.8 support with new magic header.
+Added ability to display lrzip-next 0.7.x+ filter method and/or Delta offset.
