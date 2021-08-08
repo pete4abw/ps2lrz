@@ -297,13 +297,20 @@ int main( int argc, char *argv[])
 			if (deltaval)
 				fprintf(stdout," Offset = %d", deltaval);
 			fprintf(stdout,"\n");
-			if (magic[17])
+			if (magic[17] > 0 && magic[17] <= 40)
 			{
 				// decode lzma
 				ds=LZMA2_DIC_SIZE_FROM_PROP(magic[17]);
 				fprintf(stdout,"Byte  17:        LZMA Dictionary Size Byte %02X ", magic[17]);
 				/* from LzmaDec.c Igor Pavlov */
 				fprintf(stdout,"lc=%d, lp=%d, pb=%d, Dictionary Size=%lu", 3, 0, 2,ds);
+			}
+			else if (magic[17] & 0b10000000)	// zpaq
+			{
+				int cl, bs;
+				bs = magic[17] & 0b00001111;	// low order bits are block size
+				cl = (magic[17] & 0b01110000) >> 4;		// divide by 16
+				fprintf(stdout,"Byte  17:        ZPAQ Compression and Block Size Size Byte %02X -- ZPAQ Level: %d, Block Size: %d\n", magic[17], cl, bs);
 			}
 			else
 				fprintf(stdout,"Byte  17:        unused. Not an LZMA compressed archive");
