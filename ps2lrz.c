@@ -279,7 +279,7 @@ int main( int argc, char *argv[])
 				fprintf(stdout,"lc=%d, lp=%d, pb=%d, Dictionary Size=%lu", lc,lp,pb,ds);
 			}
 			else
-				fprintf(stdout,"Bytes %2d-%2d    unused. Not an LZMA compressed archive",magic[16+filter_offset], magic[20+filter_offset]);
+				fprintf(stdout,"Bytes %2d-%2d:     unused. Not an LZMA compressed archive",16+filter_offset, 20+filter_offset);
 			fprintf(stdout,"\n");
 			fprintf(stdout,"Byte  %d:        MD5 Sum at EOF: %s\n",21+filter_offset,(magic[21+filter_offset]==1?"yes":"no"));
 			fprintf(stdout,"Byte  %d:        File is encrypted: %s\n",ENCRYPT+filter_offset,(magic[ENCRYPT+filter_offset]==1?"yes":"no"));
