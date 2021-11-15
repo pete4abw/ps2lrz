@@ -1,10 +1,11 @@
 # ps2lrz - Poke Size to LRZip File
 
-Usage: ps2lrz -s [-f] [-i] filename  
+Usage: ps2lrz [-s] [-f] [-i] filename  
        ps2lrz [-h | -?]  
   -s   size in bytes.  
   -f   force overwrite of file size. CAUTION!!  
   -i   show file info, evaluate Magic Header Bytes, and exit.  
+	If no option, info for filename will be shown.  
   -h|? (or no argument) show this help message.
 
 ## NEW Now supports lrzip-next v0.8 files

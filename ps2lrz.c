@@ -63,11 +63,11 @@
 
 void usage()
 {
-	fprintf(stdout,"Usage: ps2lrz -s [-f] [-i] filename\n");
+	fprintf(stdout,"Usage: ps2lrz [-s] [-f] [-i] filename\n");
 	fprintf(stdout,"       ps2lrz [-h | -?]\n");
 	fprintf(stdout,"  -s   size in bytes.\n");
 	fprintf(stdout,"  -f   force overwrite of file size. CAUTION!!\n");
-	fprintf(stdout,"  -i   show file info and exit.\n");
+	fprintf(stdout,"  -i   show file info and exit. -i is optional if only filename given.\n");
 	fprintf(stdout,"  -h|? show this message\n");
 }
 
@@ -108,25 +108,25 @@ char *filterstring(unsigned char magic, int *deltaval)
 int main( int argc, char *argv[])
 {
 	unsigned char magic[MAGICLEN+1];
-	u_int64_t le_filesize, exp_filesize, stored_filesize;
+	u_int64_t le_filesize, exp_filesize=0, stored_filesize;
 	FILE *fp=NULL;
-	char *endptr, *filename, o_mode[3]={'\0','\0','\0'};	/* filename for readability */
+	char *endptr, *filename=NULL, o_mode[3]={'\0','\0','\0'};	/* filename for readability */
 	int opt, filter_offset, i, exitcode=0, major, minor;
-	bool isencrypt=false, force=false, info=false;
+	bool isencrypt, force, info, changesize;
 	char filter[7];
 	int deltaval=0;
 
-	while ((opt=getopt(argc, argv, "s:fi")) != -1)
+	isencrypt=force=info=changesize=false;
+
+	while ((opt=getopt(argc, argv, "s:fi:")) != -1)
 	{
 		switch(opt)
 		{
 			case 'i':
 				info=true;
-				if (argc == 3)
-					fprintf(stdout,"Showing file info only\n");
-				else
-				{
-					fprintf(stderr,"Info option cannot be used with other options. Exiting...\n");
+				filename=optarg;
+				if (!filename) {
+					fprintf(stderr,"No filename provided\n");
 					exitcode=1;
 				}
 				break;;
@@ -134,6 +134,7 @@ int main( int argc, char *argv[])
 				force=true;
 				break;;
 			case 's':
+				changesize=true;
 				exp_filesize=strtoull(optarg,&endptr,10);
 				if (exp_filesize==0)
 				{
@@ -143,18 +144,21 @@ int main( int argc, char *argv[])
 				break;;
 			case 'h':
 			case '?':
+			default :
 				usage();
 				exitcode=-1;
 				break;;
-			default:
-				usage();
-				exitcode=3;
-				break;;
 		}
 	}
-	/* no options */
-	if (argc==1)
-	{
+
+	if (argc==1) {
+		fprintf(stderr, "Must enter [option] filename. Exiting...\n");
+		usage();
+		exitcode=-1;
+	}
+
+	if (force==true && changesize==false) {
+		fprintf(stderr, "Cannot use -f without -s. Exiting...\n");
 		usage();
 		exitcode=-1;
 	}
@@ -162,8 +166,12 @@ int main( int argc, char *argv[])
 	if (exitcode)
 		goto exitprg;
 
+	if (optind == 1)
+		info=true;
+
 	/* open file, seek to beginning, get magic header */
-	filename = argv[optind];
+	if (!filename)
+		filename = argv[optind];
 	/* if in info mode, open read only which will work regardless of user rights */
 	o_mode[0]='r';
 	if (!info)
