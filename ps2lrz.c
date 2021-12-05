@@ -60,6 +60,8 @@
 #include <endian.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <locale.h>
+#include <inttypes.h>
 
 void usage()
 {
@@ -117,6 +119,8 @@ int main( int argc, char *argv[])
 	int deltaval=0;
 
 	isencrypt=force=info=changesize=false;
+
+	setlocale(LC_ALL,"");
 
 	while ((opt=getopt(argc, argv, "s:fi:")) != -1)
 	{
@@ -232,7 +236,7 @@ int main( int argc, char *argv[])
 		fprintf(stdout,"%s %s encrypted\n",filename,(isencrypt==0?"is not":"is"));
 		fprintf(stdout,"%s uncompressed file size is ",filename);
 		if (!isencrypt)
-			fprintf(stdout,"%llu bytes\n", stored_filesize);
+			fprintf(stdout,"%'"PRIu64" bytes\n", stored_filesize);
 		else
 			fprintf(stdout,"not known because file is encrypted\n");
 		fprintf(stdout,"Dumping magic header %d bytes\n", minor<8?MAGICLEN: MAGICLEN8);
@@ -284,7 +288,7 @@ int main( int argc, char *argv[])
 				lp=(unsigned char) (d % 5);
 				dsptr=(u_int32_t *) &magic[17+filter_offset];
 				ds=le32toh(*dsptr);
-				fprintf(stdout,"lc=%d, lp=%d, pb=%d, Dictionary Size=%lu", lc,lp,pb,ds);
+				fprintf(stdout,"lc=%d, lp=%d, pb=%d, Dictionary Size=%'"PRIu32"", lc,lp,pb,ds);
 			}
 			else
 				fprintf(stdout,"Bytes %2d-%2d:     unused. Not an LZMA compressed archive",16+filter_offset, 20+filter_offset);
@@ -311,14 +315,14 @@ int main( int argc, char *argv[])
 				ds=LZMA2_DIC_SIZE_FROM_PROP(magic[17]);
 				fprintf(stdout,"Byte  17:        LZMA Dictionary Size Byte %02X ", magic[17]);
 				/* from LzmaDec.c Igor Pavlov */
-				fprintf(stdout,"lc=%d, lp=%d, pb=%d, Dictionary Size=%lu", 3, 0, 2,ds);
+				fprintf(stdout,"lc=%d, lp=%d, pb=%d, Dictionary Size=%'"PRIu32"", 3, 0, 2,ds);
 			}
 			else if (magic[17] & 0b10000000)	// zpaq
 			{
 				int cl, bs;
 				bs = magic[17] & 0b00001111;	// low order bits are block size
 				cl = (magic[17] & 0b01110000) >> 4;		// divide by 16
-				fprintf(stdout,"Byte  17:        ZPAQ Compression and Block Size Size Byte %02X -- ZPAQ Level: %d, Block Size: %d\n", magic[17], cl, bs);
+				fprintf(stdout,"Byte  17:        ZPAQ Compression and Block Size Size Byte 0x%02hhX -- ZPAQ Level: %d, Block Size: %d\n", magic[17], cl, bs);
 			}
 			else
 				fprintf(stdout,"Byte  17:        unused. Not an LZMA compressed archive");
@@ -342,7 +346,7 @@ int main( int argc, char *argv[])
 	/* are we trying to set same size as stored? */
 	if (stored_filesize == le_filesize)
 	{
-		fprintf(stderr,"Expected filesize %llu already stored in file %s. Exiting...\n",exp_filesize,filename);
+		fprintf(stderr,"Expected filesize %'"PRIu64" already stored in file %s. Exiting...\n",exp_filesize,filename);
 		exitcode=8;
 		goto exitprg;
 	}
@@ -351,7 +355,7 @@ int main( int argc, char *argv[])
 	if(stored_filesize)
 	{
 		/* size is stored in little endian */
-		fprintf(stderr,"File size %llu already stored. ",le64toh(stored_filesize));
+		fprintf(stderr,"File size %'"PRIu64" already stored. ",le64toh(stored_filesize));
 		if (force == false)
 		{
 			fprintf(stderr,"Exiting...\n");
