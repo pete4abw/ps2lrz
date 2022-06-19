@@ -32,21 +32,47 @@
  */
 
 #define _GNU_SOURCE
-#define MAGICLEN 24
+#define OLD_MAGIC_LEN 24
+#define MAGICLEN8 18
+#define MAGICLEN 20
+#define MAGIC_HEADER 6
 #define SIZESTART 6
 #define SIZELEN   8
 #define LRZVERMAJ 4
 #define LRZVERMIN 5
 #define FILTEROFF 1
 #define ENCRYPT  22
-#define MAGICLEN8 18
 #define ENCRYPT8 15
+#define COMMENT_LENGTH 64
+
 /* from Lzma2Dec.c, decode dictionary */
 #define LZMA2_DIC_SIZE_FROM_PROP(p) (p == 40 ? 0xFFFFFFFF : (((unsigned int)2 | ((p) & 1)) << ((p) / 2 + 11)))
 
+const char * hashes[] = {
+	"CRC",
+	"MD5",
+	"RIPEMD",
+	"SHA 256",
+	"SHA 384",
+	"SHA 512",
+	"SHA3 256",
+	"SHA3 512",
+	"SHAKE128_16",
+	"SHAKE 128_32",
+	"SHAKE 128_64",
+	"SHAKE 256_8",
+	"SHAKE 256_32",
+	"SHAKE 256_64",
+};
+const char * encryption[] = {
+	"NONE",
+	"AES 128",
+	"AES 256",
+};
+
 /* lrzip-next magic header 8 the same for first 14 bytes
- * byte 15 is md5 flag
- * byte 16 is encrypt flag
+ * byte 15 is hash type 
+ * byte 16 is encrypt 1-2
  * byte 17 is filter
  * byte 18 is lzma2 dictionary encoded
  */
@@ -106,16 +132,62 @@ char *filterstring(unsigned char magic, int *deltaval)
 	}
 }
 
+static bool read_magic(FILE *fd, char *magic, char *comment)
+{
+	int bytes_to_read;			// simplify reading of magic
+	int br;
+
+	memset(magic, 0, OLD_MAGIC_LEN);
+	memset(comment, 0, COMMENT_LENGTH+1);
+	/* Initially read only file type and version */
+	br=fread(&magic[0], 1, MAGIC_HEADER, fd);
+	if (br != MAGIC_HEADER) {
+		fprintf(stderr, "Failed to read initial magic header\n");
+		return false;
+	}
+
+	if (strncmp(magic, "LRZI", 4)) {
+		fprintf(stderr, "Not an lrzip file\n");
+		return false;
+	}
+
+	if (magic[4] == 0) {
+		if (magic[5] < 8)		/* old magic */
+			bytes_to_read = OLD_MAGIC_LEN;
+		else if (magic[5] == 8) 	/* 0.8 file */
+			bytes_to_read = MAGICLEN8;
+		else				/* ASSUME current version */
+			bytes_to_read = MAGICLEN;
+
+		br=fread(&magic[6], 1, bytes_to_read - MAGIC_HEADER, fd);
+		if (br != bytes_to_read - MAGIC_HEADER) { 
+			fprintf(stderr, "Failed to read magic header\n");
+			return false;
+		}
+		if (magic[5] >=9 && magic[19]) {	/* get comment if any */
+			br=fread(&comment[0], 1, magic[19], fd);
+			if (br != magic[19]) {
+				fprintf(stderr, "Error reading comment\n");
+				return false;
+			}
+		}
+
+	}
+
+	return true;
+}
 
 int main( int argc, char *argv[])
 {
-	unsigned char magic[MAGICLEN+1];
+
+	unsigned char magic[OLD_MAGIC_LEN+1];
 	u_int64_t le_filesize, exp_filesize=0, stored_filesize;
 	FILE *fp=NULL;
 	char *endptr, *filename=NULL, o_mode[3]={'\0','\0','\0'};	/* filename for readability */
 	int opt, filter_offset, i, exitcode=0, major, minor;
 	bool isencrypt, force, info, changesize;
 	char filter[7];
+	char comment[COMMENT_LENGTH+1];
 	int deltaval=0;
 
 	isencrypt=force=info=changesize=false;
@@ -188,6 +260,7 @@ int main( int argc, char *argv[])
 		goto exitprg;
 	}
 
+	
 	if (fseek(fp,0L,SEEK_SET))
 	{
 		fprintf(stderr,"Error seeking to BOF of %s. Exiting...\n", filename);
@@ -195,14 +268,11 @@ int main( int argc, char *argv[])
 		goto exitprg;
 	}
 
-	// Read old magic length even if future version. We will still only write to size position
-	if (!fgets(&magic[0],MAGICLEN+1,fp))
-	{
-		fprintf(stderr,"Error reading magic. Exiting...\n");
+	if (!read_magic(fp, magic, comment)) {
 		exitcode=6;
 		goto exitprg;
 	}
-
+		
 	major=(magic[LRZVERMAJ]);
 	minor=(magic[LRZVERMIN]);
 
@@ -219,7 +289,9 @@ int main( int argc, char *argv[])
 		case 7: isencrypt=magic[ENCRYPT+1];
 			filter_offset = 1;
 			break;;
-		case 8: isencrypt=magic[ENCRYPT8];
+		case 8: 
+		case 9:
+			isencrypt=magic[ENCRYPT8];
 			break;;
 	}
 
@@ -233,13 +305,18 @@ int main( int argc, char *argv[])
 	{
 		// common header elements
 		fprintf(stdout,"%s is an lrzip version %d.%d file\n",filename,major,minor);
-		fprintf(stdout,"%s %s encrypted\n",filename,(isencrypt==0?"is not":"is"));
+		if (!isencrypt)
+			fprintf(stdout,"%s is not encrypted\n",filename);
+		else
+			fprintf(stdout,"%s is %s encrypted\n",filename, encryption[isencrypt]);
+
 		fprintf(stdout,"%s uncompressed file size is ",filename);
 		if (!isencrypt)
 			fprintf(stdout,"%'"PRIu64" bytes\n", stored_filesize);
 		else
 			fprintf(stdout,"not known because file is encrypted\n");
-		fprintf(stdout,"Dumping magic header %d bytes\n", minor<8?MAGICLEN: MAGICLEN8);
+		fprintf(stdout,"Dumping magic header %d bytes\n", (minor<8?OLD_MAGIC_LEN:
+				       (minor==8?MAGICLEN8:MAGICLEN)));
 		fprintf(stdout,"Byte Offset      Description/Content\n");
 		fprintf(stdout,"===========      ===================\n");
 		fprintf(stdout,"Magic Bytes 0-3: ");
@@ -293,17 +370,17 @@ int main( int argc, char *argv[])
 			else
 				fprintf(stdout,"Bytes %2d-%2d:     unused. Not an LZMA compressed archive",16+filter_offset, 20+filter_offset);
 			fprintf(stdout,"\n");
-			fprintf(stdout,"Byte  %d:        MD5 Sum at EOF: %s\n",21+filter_offset,(magic[21+filter_offset]==1?"yes":"no"));
-			fprintf(stdout,"Byte  %d:        File is encrypted: %s\n",ENCRYPT+filter_offset,(magic[ENCRYPT+filter_offset]==1?"yes":"no"));
+			fprintf(stdout,"Byte  %d:        Hash Sum at EOF: %s\n",21+filter_offset,hashes[magic[21+filter_offset]]);
+			fprintf(stdout,"Byte  %d:        File is encrypted: %s\n",ENCRYPT+filter_offset,encryption[magic[ENCRYPT+filter_offset]]);
 			if (major==0 && minor==6)
 				fprintf(stdout,"Byte  23:        unused\n");
 			exitcode=0;
 		}
 		else
 		{
-			/* lrzip-mext8 */
-			fprintf(stdout,"Byte  14:        MD5 Sum at EOF: %s\n",(magic[14]>=1?"yes":"no"));
-			fprintf(stdout,"Byte  15:        File is encrypted: %s\n",(magic[ENCRYPT8]==1?"yes":"no"));
+			/* lrzip-mext8 or 9 */
+			fprintf(stdout,"Byte  14:        Hash Sum at EOF: %s\n",hashes[magic[14]]);
+			fprintf(stdout,"Byte  15:        File is encrypted: %s\n",encryption[magic[ENCRYPT8]]);
 			strcpy(filter,filterstring(magic[16], &deltaval));
 			fprintf(stdout,"Byte  16:        LRZIP Filter %hhX - %s", magic[16], filter);
 			if (deltaval)
@@ -327,6 +404,18 @@ int main( int argc, char *argv[])
 			else
 				fprintf(stdout,"Byte  17:        unused. Not an LZMA compressed archive");
 			fprintf(stdout,"\n");
+			if (minor > 8) {
+				/* print compression and comment for version 0.9+ */
+				int lrzc, rzipc;
+				lrzc = magic[18] & 0b00001111;
+				rzipc = magic[18] >> 4;
+				fprintf(stdout,"Byte  18:        Rzip / Lrzip-next Compression Levels %d / %d\n", rzipc, lrzc);
+				if (magic[19]) {
+					/* show comment if needed */
+					fprintf(stdout,"Archive Comment: %s\n", comment);
+				}
+			}
+
 			exitcode=0;
 		}
 		goto exitprg;

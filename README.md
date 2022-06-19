@@ -8,14 +8,18 @@ Usage: ps2lrz [-s] [-f] [-i] filename
 	If no option, info for filename will be shown.  
   -h|? (or no argument) show this help message.
 
-## NEW Now supports lrzip-next v0.8 files
+## NEW Now supports lrzip-next v0.8 and v0.9 files
 
-Updated magic header is 6 bytes smaller.
+Updated magic header is 6 bytes smaller for v0.8 and
+4 bytes smaller for v0.9.
+
+v0.9 lrzip-next files stores compression levels and any
+optional comment.
 
 ## What?
 `ps2lrz` is a C program to allow a user to poke an uncompressed
 file size into an **lrzip** version 0.6 or **lrzip-next**
-version 0.7 file.
+version 0.6 and later file.
 
 `ps2lrz` can also decode information stored in the Magic Header
 Bytes and present it in an easy to read format.
