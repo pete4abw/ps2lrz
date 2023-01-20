@@ -1,4 +1,4 @@
-/*  Copyright 2021 Peter Hyman, pete@peterhyman.com
+/*  Copyright 2021-2023 Peter Hyman, pete@peterhyman.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -46,8 +46,9 @@
 #define COMMENT_LENGTH 64
 
 /* from Lzma2Dec.c, decode dictionary */
-#define LZMA2_DIC_SIZE_FROM_PROP(p) (p == 40 ? 0xFFFFFFFF : (((unsigned int)2 | ((p) & 1)) << ((p) / 2 + 11)))
-
+#define LZMA2_DIC_SIZE_FROM_PROP(p)	(p == 40 ? 0xFFFFFFFF : (((u_int32_t)2 | ((p) & 1)) << ((p) / 2 + 11)))
+/* bzip3, return actual block size */
+#define BZIP3_BLOCK_SIZE_FROM_PROP(p)	(p == 8 ? 0x1FFFFFFF : (((u_int32_t)2 | ((p) & 1)) << ((p) / 2 + 24)))
 const char * hashes[] = {
 	"CRC",
 	"MD5",
@@ -291,6 +292,7 @@ int main( int argc, char *argv[])
 			break;;
 		case 8: 
 		case 9:
+		case 10:
 			isencrypt=magic[ENCRYPT8];
 			break;;
 	}
@@ -378,7 +380,7 @@ int main( int argc, char *argv[])
 		}
 		else
 		{
-			/* lrzip-mext8 or 9 */
+			/* lrzip-mext 8 or 9+ */
 			fprintf(stdout,"Byte  14:        Hash Sum at EOF: %s\n",hashes[magic[14]]);
 			fprintf(stdout,"Byte  15:        File is encrypted: %s\n",encryption[magic[ENCRYPT8]]);
 			strcpy(filter,filterstring(magic[16], &deltaval));
@@ -394,6 +396,14 @@ int main( int argc, char *argv[])
 				/* from LzmaDec.c Igor Pavlov */
 				fprintf(stdout,"lc=%d, lp=%d, pb=%d, Dictionary Size=%'"PRIu32"", 3, 0, 2,ds);
 			}
+			else if ((magic[17] & 0b11110000) == 0b11110000)	// bzip3
+			{
+				int b3bs;
+				u_int32_t abs;
+				b3bs = (magic[17] & 0b00001111);
+				abs = BZIP3_BLOCK_SIZE_FROM_PROP(b3bs);
+				fprintf(stdout,"Byte  17:        BZIP3 Compression and Block Size Size Byte 0x%02hhX -- BZIP3 Block Size: %d, %'"PRIu32"\n", magic[17], b3bs, abs);
+			}
 			else if (magic[17] & 0b10000000)	// zpaq
 			{
 				int cl, bs;
@@ -403,7 +413,6 @@ int main( int argc, char *argv[])
 			}
 			else
 				fprintf(stdout,"Byte  17:        unused. Not an LZMA compressed archive");
-			fprintf(stdout,"\n");
 			if (minor > 8) {
 				/* print compression and comment for version 0.9+ */
 				int lrzc, rzipc;
