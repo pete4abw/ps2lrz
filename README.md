@@ -8,13 +8,15 @@ Usage: ps2lrz [-s] [-f] [-i] filename
 	If no option, info for filename will be shown.  
   -h|? (or no argument) show this help message.
 
-## NEW Now supports lrzip-next v0.8 and v0.9 files
+## NEW Now supports lrzip-next v0.8 and v0.9  and v0.10 files
 
 Updated magic header is 6 bytes smaller for v0.8 and
-4 bytes smaller for v0.9.
+4 bytes smaller for v0.9 and v0.10 files.
 
 v0.9 lrzip-next files stores compression levels and any
 optional comment.
+
+v0.10 lrzip-next files also stores BZIP3 compression block size.
 
 ## What?
 `ps2lrz` is a C program to allow a user to poke an uncompressed
@@ -87,6 +89,25 @@ Byte  14:        MD5 Sum at EOF: yes
 Byte  15:        File is encrypted: no
 Byte  16:        LRZIP Filter 0
 Byte  17:        LZMA Dictionary Size Byte 1A lc=3, lp=0, pb=2, Dictionary Size=33554432
+```
+Or, if you have an `lrzip-next` version **0.9.x** or **0.10.x** file, the output will resemble this.
+```
+$ ./ps2lrz /tmp/words.txt.lrz
+/tmp/words.txt.lrz is an lrzip version 0.10 file
+/tmp/words.txt.lrz is not encrypted
+/tmp/words.txt.lrz uncompressed file size is 1,191,359 bytes
+Dumping magic header 20 bytes
+Byte Offset      Description/Content
+===========      ===================
+Magic Bytes 0-3: 4C 52 5A 49 LRZI
+Bytes 4-5:       LRZIP Major, Minor version: 00, 0a
+Bytes 6-13:      LRZIP Uncompressed Size bytes: BF 2D 12 00 00 00 00 00 
+Byte  14:        Hash Sum at EOF: SHA 256
+Byte  15:        File is encrypted: NONE
+Byte  16:        LRZIP Filter 0 - None
+Byte  17:        BZIP3 Compression and Block Size Size Byte 0xF5 -- BZIP3 Block Size: 5, 201,326,592
+Byte  18:        Rzip / Lrzip-next Compression Levels 1 / 9
+Archive Comment: ps2lrz comment example
 ```
 
 **filename.lrz uncompressed file size is 0 bytes** shows you could use a file size.
@@ -162,6 +183,6 @@ Byte  17:        LZMA Dictionary Size Byte 1A lc=3, lp=0, pb=2, Dictionary Size=
 
 Feeback welcome!
 
-July 2021  
+January 2023  
 Peter Hyman  
 pete@peterhyman.com
