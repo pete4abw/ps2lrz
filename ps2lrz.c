@@ -394,7 +394,7 @@ int main( int argc, char *argv[])
 				ds=LZMA2_DIC_SIZE_FROM_PROP(magic[17]);
 				fprintf(stdout,"Byte  17:        LZMA Dictionary Size Byte %02X ", magic[17]);
 				/* from LzmaDec.c Igor Pavlov */
-				fprintf(stdout,"lc=%d, lp=%d, pb=%d, Dictionary Size=%'"PRIu32"", 3, 0, 2,ds);
+				fprintf(stdout,"lc=%d, lp=%d, pb=%d, Dictionary Size=%'"PRIu32"\n", 3, 0, 2,ds);
 			}
 			else if ((magic[17] & 0b11110000) == 0b11110000)	// bzip3
 			{
