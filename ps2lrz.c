@@ -419,10 +419,10 @@ int main( int argc, char *argv[])
 				lrzc = magic[18] & 0b00001111;
 				rzipc = magic[18] >> 4;
 				fprintf(stdout,"Byte  18:        Rzip / Lrzip-next Compression Levels %d / %d\n", rzipc, lrzc);
-				if (magic[19]) {
-					/* show comment if needed */
-					fprintf(stdout,"Archive Comment: %s\n", comment);
-				}
+				if (magic[19])			// show archive comment or not
+					fprintf(stdout,"Byte  19:        Archive Comment: Length: %d, %s\n", magic[19], comment);
+				else
+					fprintf(stdout,"Byte  19:        No Archive Comment stored\n");
 			}
 
 			exitcode=0;
