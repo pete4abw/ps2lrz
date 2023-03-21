@@ -412,7 +412,7 @@ int main( int argc, char *argv[])
 				fprintf(stdout,"Byte  17:        ZPAQ Compression and Block Size Size Byte 0x%02hhX -- ZPAQ Level: %d, Block Size: %d\n", magic[17], cl, bs);
 			}
 			else
-				fprintf(stdout,"Byte  17:        unused. Not an LZMA compressed archive");
+				fprintf(stdout,"Byte  17:        unused. Not an LZMA, BZIP3, or ZPAQ  compressed archive\n");
 			if (minor > 8) {
 				/* print compression and comment for version 0.9+ */
 				int lrzc, rzipc;
