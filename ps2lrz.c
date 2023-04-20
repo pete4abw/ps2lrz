@@ -34,8 +34,11 @@
 #define _GNU_SOURCE
 #define OLD_MAGIC_LEN 24
 #define MAGICLEN8 18
-#define MAGICLEN 20
+#define MAGICLEN9 20
+#define MAGICLEN  21
 #define MAGIC_HEADER 6
+#define COMMENTSTART9 19
+#define COMMENTSTART 20
 #define SIZESTART 6
 #define SIZELEN   8
 #define LRZVERMAJ 4
@@ -71,13 +74,13 @@ const char * encryption[] = {
 	"AES 256",
 };
 
-/* lrzip-next magic header 8 the same for first 14 bytes
- * byte 15 is hash type 
- * byte 16 is encrypt 1-2
- * byte 17 is filter
- * byte 18 is lzma2 dictionary encoded
- */
-
+const char * compression_methods[] = {
+	"NONE/BZIP/GZIP/LZO",
+	"LZMA",
+	"ZPAQ",
+	"BZIP3",
+	"ZSTD",
+};
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -137,6 +140,7 @@ static bool read_magic(FILE *fd, char *magic, char *comment)
 {
 	int bytes_to_read;			// simplify reading of magic
 	int br;
+	int commentstart;
 
 	memset(magic, 0, OLD_MAGIC_LEN);
 	memset(comment, 0, COMMENT_LENGTH+1);
@@ -157,17 +161,23 @@ static bool read_magic(FILE *fd, char *magic, char *comment)
 			bytes_to_read = OLD_MAGIC_LEN;
 		else if (magic[5] == 8) 	/* 0.8 file */
 			bytes_to_read = MAGICLEN8;
-		else				/* ASSUME current version */
+		else if (magic[5] == 9 || magic[5] == 10) {
+			bytes_to_read = MAGICLEN9;
+			commentstart = COMMENTSTART9;
+		}
+		else {				/* ASSUME current version */
 			bytes_to_read = MAGICLEN;
+			commentstart = COMMENTSTART;
+		}
 
 		br=fread(&magic[6], 1, bytes_to_read - MAGIC_HEADER, fd);
 		if (br != bytes_to_read - MAGIC_HEADER) { 
 			fprintf(stderr, "Failed to read magic header\n");
 			return false;
 		}
-		if (magic[5] >=9 && magic[19]) {	/* get comment if any */
-			br=fread(&comment[0], 1, magic[19], fd);
-			if (br != magic[19]) {
+		if (magic[5] >=9 && magic[commentstart] > 0) {	/* get comment if any from any version*/
+			br=fread(&comment[0], 1, magic[commentstart], fd);
+			if (br != magic[commentstart]) {
 				fprintf(stderr, "Error reading comment\n");
 				return false;
 			}
@@ -378,7 +388,7 @@ int main( int argc, char *argv[])
 				fprintf(stdout,"Byte  23:        unused\n");
 			exitcode=0;
 		}
-		else
+		else if (minor >= 8 && minor <= 10)
 		{
 			/* lrzip-mext 8 or 9+ */
 			fprintf(stdout,"Byte  14:        Hash Sum at EOF: %s\n",hashes[magic[14]]);
@@ -427,6 +437,66 @@ int main( int argc, char *argv[])
 
 			exitcode=0;
 		}
+		else if (minor == 11)	/* current version */
+			fprintf(stdout,"Byte  14:        Hash Sum at EOF: %s\n",hashes[magic[14]]);
+			fprintf(stdout,"Byte  15:        File is encrypted: %s\n",encryption[magic[ENCRYPT8]]);
+			strcpy(filter,filterstring(magic[16], &deltaval));
+			fprintf(stdout,"Byte  16:        LRZIP Filter %hhX - %s", magic[16], filter);
+			if (deltaval)
+				fprintf(stdout," Offset = %d", deltaval);
+			fprintf(stdout,"\n");
+			fprintf(stdout,"Byte  17:        Compression Method: %s",compression_methods[magic[17] & 0b00000111]);
+			if ((magic[17] & 0b11110000) > 0)
+				// zstd
+				fprintf(stdout," -- ZSTD strategy in high bits %08b\n", magic[17]);
+			else
+				fprintf(stdout,"\n");
+
+			/* filter out high bits in case zstd */
+			/* byte 18 will contain compression properties */
+			if (magic[17] == 0) {
+				fprintf(stdout,"Byte  18:	Not used\n");
+			}
+			else if (magic[17] == 1) {
+				// decode lzma
+				ds=LZMA2_DIC_SIZE_FROM_PROP(magic[18]);
+				fprintf(stdout,"Byte  18:        LZMA Dictionary Size Byte %02X ", magic[18]);
+				/* from LzmaDec.c Igor Pavlov */
+				fprintf(stdout,"lc=%d, lp=%d, pb=%d, Dictionary Size=%'"PRIu32"\n", 3, 0, 2,ds);
+			}
+			else if (magic[17] == 2) {
+				// zpaq
+				int cl, bs;
+				bs = magic[18] & 0b00001111;	// low order bits are block size
+				cl = (magic[18] & 0b01110000) >> 4;		// divide by 16
+				fprintf(stdout,"Byte  18:        ZPAQ Compression and Block Size Size Byte 0x%02hhX -- ZPAQ Level: %d, Block Size: %d\n", magic[18], cl, bs);
+			}
+			else if (magic[17] == 3) {
+				// bzip3
+				int b3bs;
+				u_int32_t abs;
+				b3bs = (magic[18] & 0b00001111);
+				abs = BZIP3_BLOCK_SIZE_FROM_PROP(b3bs);
+				fprintf(stdout,"Byte  18:        BZIP3 Compression and Block Size Size Byte 0x%02hhX -- BZIP3 Block Size: %d, %'"PRIu32"\n",
+					       magic[18], b3bs, abs);
+			}
+			else if ((magic[17] & 0b00000111) == 4) {
+				// zstd
+				int zstrat = (magic[17] & 0b11110000) >> 4;	// 1-9
+				int zlevel = magic[18];	// 1-22
+				fprintf(stdout,"Byte  18:        ZSTD Compression Level Byte 0x%02hhX Strategy Byte 0x%02hhX -- ZSTD Level: %d, ZSTD Strategy: %d\n",
+						magic[18], (magic[17] & 0b11110000) >> 4, zlevel, zstrat);
+			}
+			else
+				fprintf(stdout,"I don't know what compression method is used: %d\n", magic[17]);
+			int lrzc, rzipc;
+			lrzc = magic[19] & 0b00001111;
+			rzipc = magic[19] >> 4;
+			fprintf(stdout,"Byte  19:        Rzip / Lrzip-next Compression Levels %d / %d\n", rzipc, lrzc);
+			if (magic[COMMENTSTART])			// show archive comment or not
+				fprintf(stdout,"Byte  20:        Archive Comment: Length: %d, %s\n", magic[COMMENTSTART], comment);
+			else
+				fprintf(stdout,"Byte  20:        No Archive Comment stored\n");
 		goto exitprg;
 	}
 
