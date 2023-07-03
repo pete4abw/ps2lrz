@@ -106,6 +106,12 @@ void usage()
 char *filterstring(unsigned char magic, int *deltaval)
 {
 
+	if (magic > 7) {				// is Delta?
+		*deltaval = magic >> 3;
+		if (*deltaval > 16)
+			(*deltaval-15)*16;
+		return "Delta";
+	}
 	unsigned char filt = magic & 7;
 	switch (filt)
 	{
@@ -117,18 +123,14 @@ char *filterstring(unsigned char magic, int *deltaval)
 			break;;
 		case 3: return "ARMT";
 			break;;
-		case 4: return "PPC";
+		case 4: return "ARM64";
 			break;;
-		case 5: return "SPARC";
+		case 5: return "PPC";
+			break;;
+		case 6: return "SPARC";
 			break;
-		case 6: return "IA64";
+		case 7: return "IA64";
 			break;
-		case 7: *deltaval = magic >> 3;
-			if (*deltaval <= 16)
-				*deltaval+=1;
-			else
-				(*deltaval-16+1)*16;
-			return "Delta";
 			break;
 		default:
 			return "WTF?";
@@ -303,6 +305,8 @@ int main( int argc, char *argv[])
 		case 8: 
 		case 9:
 		case 10:
+		case 11:
+		case 12:
 			isencrypt=magic[ENCRYPT8];
 			break;;
 	}
@@ -437,7 +441,7 @@ int main( int argc, char *argv[])
 
 			exitcode=0;
 		}
-		else if (minor == 11)	/* current version */
+		else if (minor >= 11)	/* current version */
 			fprintf(stdout,"Byte  14:        Hash Sum at EOF: %s\n",hashes[magic[14]]);
 			fprintf(stdout,"Byte  15:        File is encrypted: %s\n",encryption[magic[ENCRYPT8]]);
 			strcpy(filter,filterstring(magic[16], &deltaval));

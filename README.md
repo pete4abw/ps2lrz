@@ -8,7 +8,7 @@ Usage: ps2lrz [-s] [-f] [-i] filename
 	If no option, info for filename will be shown.  
   -h|? (or no argument) show this help message.
 
-## NEW Now supports lrzip-next v0.8 and v0.9  and v0.10 files
+## NEW Now supports lrzip-next v0.8, v0.9, v0.10, v0.11, v0.12 files
 
 Updated magic header is 6 bytes smaller for v0.8 and
 4 bytes smaller for v0.9 and v0.10 files.
@@ -17,6 +17,10 @@ v0.9 lrzip-next files stores compression levels and any
 optional comment.
 
 v0.10 lrzip-next files also stores BZIP3 compression block size.
+
+v0.11 Add zstd level and strategy to magic header.
+
+v0.12 LZMA SDK 23.01 Add ARM64 filtering. Breaks earlier filters.
 
 ## What?
 `ps2lrz` is a C program to allow a user to poke an uncompressed
