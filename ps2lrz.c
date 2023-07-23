@@ -103,38 +103,67 @@ void usage()
 	fprintf(stdout,"  -h|? show this message\n");
 }
 
-char *filterstring(unsigned char magic, int *deltaval)
+char *filterstring(int minor, unsigned char magic, int *deltaval)
 {
 
-	if (magic > 7) {				// is Delta?
-		*deltaval = magic >> 3;
-		if (*deltaval > 16)
-			(*deltaval-15)*16;
-		return "Delta";
-	}
 	unsigned char filt = magic & 7;
-	switch (filt)
-	{
-		case 0: return "None";
-			break;;
-		case 1: return "x86";
-			break;;
-		case 2: return "ARM";
-			break;;
-		case 3: return "ARMT";
-			break;;
-		case 4: return "ARM64";
-			break;;
-		case 5: return "PPC";
-			break;;
-		case 6: return "SPARC";
-			break;
-		case 7: return "IA64";
-			break;
-			break;
-		default:
-			return "WTF?";
-			break;
+	if (minor == 12) {
+		if (magic > 7) {				// is Delta?
+			*deltaval = magic >> 3;
+			if (*deltaval > 16)
+				(*deltaval-15)*16;
+			return "Delta";
+		}
+		switch (filt)
+		{
+			case 0: return "None";
+				break;;
+			case 1: return "x86";
+				break;;
+			case 2: return "ARM";
+				break;;
+			case 3: return "ARMT";
+				break;;
+			case 7: return "ARM64";	/* new */
+				break;;
+			case 4: return "PPC";
+				break;;
+			case 5: return "SPARC";
+				break;
+			case 6: return "IA64";
+				break;
+			default:
+				return "WTF?";
+				break;
+		}
+	} else {	/* minor version < 12 old versions */
+		switch (filt)
+		{
+			case 0: return "None";
+				break;;
+			case 1: return "x86";
+				break;;
+			case 2: return "ARM";
+				break;;
+			case 3: return "ARMT";
+				break;;
+			case 4: return "PPC";
+				break;;
+			case 5: return "SPARC";
+				break;
+			case 6: return "IA64";
+				break;
+			case 7: *deltaval = magic >> 3;
+				if (*deltaval <= 16)
+					*deltaval+=1;
+				else
+					(*deltaval-16+1)*16;
+				return "Delta";
+				break;
+			default:
+				return "WTF?";
+				break;
+		}
 	}
 }
 
@@ -360,7 +389,7 @@ int main( int argc, char *argv[])
 			fprintf(stdout,"Bytes 14 and 15: unused\n");
 			if (minor==7)
 			{
-				strcpy(filter,filterstring(magic[16], &deltaval));
+				strcpy(filter,filterstring(minor, magic[16], &deltaval));
 				fprintf(stdout,"Byte  16:        LRZIP Filter %hhX - %s", magic[16], filter);
 				if (deltaval)
 					fprintf(stdout," Offset = %d", deltaval);
@@ -397,7 +426,7 @@ int main( int argc, char *argv[])
 			/* lrzip-mext 8 or 9+ */
 			fprintf(stdout,"Byte  14:        Hash Sum at EOF: %s\n",hashes[magic[14]]);
 			fprintf(stdout,"Byte  15:        File is encrypted: %s\n",encryption[magic[ENCRYPT8]]);
-			strcpy(filter,filterstring(magic[16], &deltaval));
+			strcpy(filter,filterstring(minor, magic[16], &deltaval));
 			fprintf(stdout,"Byte  16:        LRZIP Filter %hhX - %s", magic[16], filter);
 			if (deltaval)
 				fprintf(stdout," Offset = %d", deltaval);
@@ -444,7 +473,7 @@ int main( int argc, char *argv[])
 		else if (minor >= 11)	/* current version */
 			fprintf(stdout,"Byte  14:        Hash Sum at EOF: %s\n",hashes[magic[14]]);
 			fprintf(stdout,"Byte  15:        File is encrypted: %s\n",encryption[magic[ENCRYPT8]]);
-			strcpy(filter,filterstring(magic[16], &deltaval));
+			strcpy(filter,filterstring(minor, magic[16], &deltaval));
 			fprintf(stdout,"Byte  16:        LRZIP Filter %hhX - %s", magic[16], filter);
 			if (deltaval)
 				fprintf(stdout," Offset = %d", deltaval);
