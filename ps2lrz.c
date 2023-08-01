@@ -470,7 +470,7 @@ int main( int argc, char *argv[])
 
 			exitcode=0;
 		}
-		else if (minor >= 11)	/* current version */
+		else if (minor >= 11) {	/* current version */
 			fprintf(stdout,"Byte  14:        Hash Sum at EOF: %s\n",hashes[magic[14]]);
 			fprintf(stdout,"Byte  15:        File is encrypted: %s\n",encryption[magic[ENCRYPT8]]);
 			strcpy(filter,filterstring(minor, magic[16], &deltaval));
@@ -530,7 +530,8 @@ int main( int argc, char *argv[])
 				fprintf(stdout,"Byte  20:        Archive Comment: Length: %d, %s\n", magic[COMMENTSTART], comment);
 			else
 				fprintf(stdout,"Byte  20:        No Archive Comment stored\n");
-		goto exitprg;
+			goto exitprg;
+		}
 	}
 
 	/* is encrypted? can't process because encryption has is in place of file size (for now) */
