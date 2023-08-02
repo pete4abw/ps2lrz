@@ -1,17 +1,5 @@
 /*  Copyright 2021-2023 Peter Hyman, pete@peterhyman.com
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *  SPDX short identifier: Unlicense
 */
 
 /* ps2lrz - poke size to byte offset 6 of lrzip lrz files
@@ -93,9 +81,17 @@ const char * compression_methods[] = {
 #include <locale.h>
 #include <inttypes.h>
 
+#ifndef HAVE_CONFIG
+#define PACKAGE "ps2lrz"
+#define VERSION "0.12"
+#else
+#include "config.h"
+#endif
+
+
 void usage()
 {
-	fprintf(stdout,"Usage: ps2lrz [-s] [-f] [-i] filename\n");
+	fprintf(stdout,"Usage: %s [-s] [-f] [-i] filename\n", PACKAGE);
 	fprintf(stdout,"       ps2lrz [-h | -?]\n");
 	fprintf(stdout,"  -s   size in bytes.\n");
 	fprintf(stdout,"  -f   force overwrite of file size. CAUTION!!\n");
@@ -236,6 +232,7 @@ int main( int argc, char *argv[])
 
 	setlocale(LC_ALL,"");
 
+	fprintf(stdout,"%s-%s\n",PACKAGE,VERSION);
 	while ((opt=getopt(argc, argv, "s:fi:")) != -1)
 	{
 		switch(opt)

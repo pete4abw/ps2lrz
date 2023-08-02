@@ -1,0 +1,16 @@
+.*~
+*~
+*.o
+ps2lrz
+Makefile
+.deps
+autom4te.cache
+configure
+*.in
+config.*
+aclocal.m4
+compile
+depcomp
+install-sh
+missing
+stamp-h1

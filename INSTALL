@@ -1,0 +1,11 @@
+INSTALL
+
+./autogen.sh
+./configure [options]
+make [options]
+if root
+make install or
+make DESTDIR=dir install
+
+OR simply
+gcc -o ps2lrz ps2lrz.c
