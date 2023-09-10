@@ -485,7 +485,7 @@ int main( int argc, char *argv[])
 			/* filter out high bits in case zstd */
 			/* byte 18 will contain compression properties */
 			if (magic[17] == 0) {
-				fprintf(stdout,"Byte  18:	Not used\n");
+				fprintf(stdout,"Byte  18:        Not used\n");
 			}
 			else if (magic[17] == 1) {
 				// decode lzma
