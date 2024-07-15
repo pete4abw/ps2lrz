@@ -8,7 +8,7 @@ Usage: ps2lrz [-s] [-f] [-i] filename
 	If no option, info for filename will be shown.  
   -h|? (or no argument) show this help message.
 
-## NEW Now supports lrzip-next versions up to  v0.12.
+## NEW Now supports lrzip-next versions up to  v0.13.
 ## NEW Now using autofoo
 
 Updated magic header is 6 bytes smaller for v0.8 and
