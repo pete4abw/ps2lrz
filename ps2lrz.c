@@ -83,7 +83,7 @@ const char * compression_methods[] = {
 
 #ifndef HAVE_CONFIG
 #define PACKAGE "ps2lrz"
-#define VERSION "0.12"
+#define VERSION "0.13"
 #else
 #include "config.h"
 #endif
@@ -102,14 +102,48 @@ void usage()
 char *filterstring(int minor, unsigned char magic, int *deltaval)
 {
 
-	unsigned char filt = magic & 7;
-	if (minor == 12) {
+	unsigned char filt;
+	if (minor == 13) {
+		if (magic > 128) {				// is Delta?
+			/* Delta now stored by setting bit 7 + delta value */
+			*deltaval = magic - 128;	/* magic & 0111111b */
+			if (*deltaval > 16)
+				*deltaval = (*deltaval-15)*16;
+			return "Delta";
+		}
+		filt = magic;
+		switch (filt)
+		{
+			case 0: return "None";
+				break;;
+			case 1: return "x86";
+				break;;
+			case 2: return "ARM";
+				break;;
+			case 3: return "ARMT";
+				break;;
+			case 4: return "PPC";
+				break;;
+			case 5: return "SPARC";
+				break;
+			case 6: return "IA64";
+				break;
+			case 7: return "ARM64";
+				break;;
+			case 8: return "RISC-V"; /* new */
+				break;
+			default:
+				return "WTF?";
+				break;
+		}
+	} else if (minor == 12) {
 		if (magic > 7) {				// is Delta?
 			*deltaval = magic >> 3;
 			if (*deltaval > 16)
-				(*deltaval-15)*16;
+				*deltaval = (*deltaval-15)*16;
 			return "Delta";
 		}
+		filt = magic & 7;
 		switch (filt)
 		{
 			case 0: return "None";
@@ -153,7 +187,7 @@ char *filterstring(int minor, unsigned char magic, int *deltaval)
 				if (*deltaval <= 16)
 					*deltaval+=1;
 				else
-					(*deltaval-16+1)*16;
+					*deltaval = (*deltaval-16+1)*16;
 				return "Delta";
 				break;
 			default:
@@ -333,6 +367,7 @@ int main( int argc, char *argv[])
 		case 10:
 		case 11:
 		case 12:
+		case 13:
 			isencrypt=magic[ENCRYPT8];
 			break;;
 	}

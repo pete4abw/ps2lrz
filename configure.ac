@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.71])
-AC_INIT([ps2lrz], [0.12], [pete@peterhyman.com],[],[https://github.com/pete4abw/ps2lrz])
+AC_INIT([ps2lrz], [0.13], [pete@peterhyman.com],[],[https://github.com/pete4abw/ps2lrz])
 AC_CONFIG_SRCDIR([ps2lrz.c])
 AC_CONFIG_HEADERS([config.h])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign])

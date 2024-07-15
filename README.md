@@ -23,6 +23,8 @@ v0.11 Add zstd level and strategy to magic header.
 
 v0.12 LZMA SDK 23.01 Add ARM64 filtering.
 
+v0.13 LZMA SDK 24.07. RISC-V filter. Delta filter storage change.
+
 ## What?
 `ps2lrz` is a C program to allow a user to poke an uncompressed
 file size into an **lrzip** version 0.6 or **lrzip-next**
