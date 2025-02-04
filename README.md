@@ -8,7 +8,7 @@ Usage: ps2lrz [-s] [-f] [-i] filename
 	If no option, info for filename will be shown.  
   -h|? (or no argument) show this help message.
 
-## NEW Now supports lrzip-next versions up to  v0.13.
+## NEW Now supports lrzip-next versions up to  v0.14.
 ## NEW Now using autofoo
 
 Updated magic header is 6 bytes smaller for v0.8 and
@@ -24,6 +24,8 @@ v0.11 Add zstd level and strategy to magic header.
 v0.12 LZMA SDK 23.01 Add ARM64 filtering.
 
 v0.13 LZMA SDK 24.07. RISC-V filter. Delta filter storage change.
+
+v0.14 Costfactor stored as 1 byte (2^N).
 
 ## What?
 `ps2lrz` is a C program to allow a user to poke an uncompressed

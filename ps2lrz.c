@@ -83,7 +83,7 @@ const char * compression_methods[] = {
 
 #ifndef HAVE_CONFIG
 #define PACKAGE "ps2lrz"
-#define VERSION "0.13"
+#define VERSION "0.14"
 #else
 #include "config.h"
 #endif
@@ -103,7 +103,7 @@ char *filterstring(int minor, unsigned char magic, int *deltaval)
 {
 
 	unsigned char filt;
-	if (minor == 13) {
+	if (minor >= 13) {
 		if (magic > 128) {				// is Delta?
 			/* Delta now stored by setting bit 7 + delta value */
 			*deltaval = magic - 128;	/* magic & 0111111b */
@@ -368,6 +368,7 @@ int main( int argc, char *argv[])
 		case 11:
 		case 12:
 		case 13:
+		case 14:
 			isencrypt=magic[ENCRYPT8];
 			break;;
 	}
@@ -394,6 +395,7 @@ int main( int argc, char *argv[])
 			fprintf(stdout,"not known because file is encrypted\n");
 		fprintf(stdout,"Dumping magic header %d bytes\n", (minor<8?OLD_MAGIC_LEN:
 				       (minor==8?MAGICLEN8:MAGICLEN)));
+	
 		fprintf(stdout,"Byte Offset      Description/Content\n");
 		fprintf(stdout,"===========      ===================\n");
 		fprintf(stdout,"Magic Bytes 0-3: ");
@@ -408,11 +410,20 @@ int main( int argc, char *argv[])
 			fprintf(stdout,"Bytes 6-13:      LRZIP Uncompressed Size bytes: ");
 		else
 		{
-			fprintf(stdout,"Bytes 6-7:       Encryption Hash Loops: %02hhX %02hhX = %llu\n",
-					magic[6], magic[7], ((u_int64_t) magic[7] << (u_int64_t) magic[6]));
-			fprintf(stdout,"Bytes 8-13,      Encryption Salt: ");
-			j+=2;
+			if (minor != 14) {
+				fprintf(stdout,"Bytes 6-7:       Encryption Hash Loops: %02hhX %02hhX = %llu\n",
+						magic[6], magic[7], ((u_int64_t) magic[7] << (u_int64_t) magic[6]));
+				fprintf(stdout,"Bytes 8-13:      Encryption Salt: ");
+				j+=2;
+			}
+			else {	// Costfactor used in 0.14+
+				fprintf(stdout,"Byte   6:        Cost Factor (2^N): %02hhX = %llu\n",
+						magic[6], ((u_int64_t) 1 << (u_int64_t) magic[6]));
+				fprintf(stdout,"Bytes 7-13:      Encryption Salt: ");
+				j++;
+			}
 		}
+		// print either size or salt for encryption
 		for (i=j;i<SIZESTART+SIZELEN;i++)
 			fprintf(stdout,"%02hhX ",magic[i]);
 		fprintf(stdout,"\n");
